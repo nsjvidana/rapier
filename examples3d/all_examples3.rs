@@ -42,6 +42,15 @@ mod dynamic_trimesh3;
 mod fountain3;
 mod gyroscopic3;
 mod heightfield3;
+mod joints3;
+// mod joints3;
+mod character_controller3;
+mod debug_chain_high_mass_ratio3;
+mod debug_cube_high_mass_ratio3;
+mod debug_internal_edges3;
+mod debug_long_chain3;
+mod debug_multibody_ang_motor_pos3;
+mod debug_multibody_sleep3;
 mod inverse_kinematics3;
 mod joint_motor_position3;
 mod joints3;
@@ -207,6 +216,8 @@ pub async fn main() {
             "Multibody ang. motor pos.",
             debug_multibody_ang_motor_pos3::init_world,
         ),
+
+        ("00 (Debug) sticcman", debug_multibody_sleep3::init_world)
     ];
     let mut benches = stress_tests::builders();
     builders.append(&mut benches);
