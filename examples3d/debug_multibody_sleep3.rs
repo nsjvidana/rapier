@@ -266,19 +266,37 @@ pub fn init_world(testbed: &mut Testbed) {
     }
 
     {//head
-        // let neck_j = SphericalJointBuilder::new()
-        //     .local_anchor1(point![0., spine_seg_len/2., 0.])
-        //     .local_anchor2(point![0., -(head_half_height+head_radius)/2., 0.])
-        //     .limits(JointAxis::AngX, [-FRAC_PI_4, FRAC_PI_3])
-        //     .limits(JointAxis::AngY, [-PI, PI])
-        //     .limits(JointAxis::AngZ, [-FRAC_PI_4, FRAC_PI_4])
-        //     .motor(JointAxis::AngX, 0., motor_vel, 1., 0.)
-        //     .motor(JointAxis::AngY, 0., motor_vel, 1., 0.)
-        //     .motor(JointAxis::AngZ, 0., motor_vel, 1., 0.);
-        // let head_collider = ColliderBuilder::capsule_y(head_half_height, head_radius);
-        // let head = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 1.5, -1.5]));
-        //     colliders.insert_with_parent(head_collider, head, &mut bodies);
-        // multibody_joints.insert(spine_end, head, neck_j, true);
+
+        let neck_len = spine_len/8.;
+        let neck_collider = ColliderBuilder::capsule_y((neck_len/2.)-radius, radius);
+        let neck = bodies.insert(RigidBodyBuilder::dynamic());
+            colliders.insert_with_parent(
+                neck_collider,
+                neck,
+                &mut bodies
+            );
+        let head_collider = ColliderBuilder::capsule_y(head_half_height, head_radius);
+        let head = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 1.5, -1.5]));
+            colliders.insert_with_parent(head_collider, head, &mut bodies);
+            
+        let spine_to_neck_j = SphericalJointBuilder::new()
+            .local_anchor1(point![0., spine_seg_len/2., 0.])
+            .local_anchor2(point![0., -neck_len/2., 0.])
+            .motor(JointAxis::AngX, 0., target_vel, stiffness, damping)
+            .motor(JointAxis::AngY, 0., target_vel, stiffness, damping)
+            .motor(JointAxis::AngZ, 0., target_vel, stiffness, damping);
+        let neck_j = SphericalJointBuilder::new()
+            .local_anchor1(point![0., neck_len/2., 0.])
+            .local_anchor2(point![0., -(head_half_height+head_radius)/2., 0.])
+            .limits(JointAxis::AngX, [-FRAC_PI_4, FRAC_PI_3])
+            .limits(JointAxis::AngY, [-PI, PI])
+            .limits(JointAxis::AngZ, [-FRAC_PI_4, FRAC_PI_4])
+            .motor(JointAxis::AngX, 0., motor_vel, 1., 0.)
+            .motor(JointAxis::AngY, 0., motor_vel, 1., 0.)
+            .motor(JointAxis::AngZ, 0., motor_vel, 1., 0.);
+
+        multibody_joints.insert(spine_end, neck, spine_to_neck_j, true);
+        multibody_joints.insert(neck, head, neck_j, true);
     }
 
     let mb = multibody_joints.get_mut(mbj_handle_opt.unwrap()).unwrap().0;
