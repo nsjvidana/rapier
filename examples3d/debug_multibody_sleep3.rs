@@ -217,25 +217,28 @@ pub fn init_world(testbed: &mut Testbed) {
         let lower_leg_collider = ColliderBuilder::capsule_y((leg_upper_len/2.)-radius, radius);
 
         {//right leg
-            let leg_r_upper;
 
-            let hipx = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 5., 1.]));
-                colliders.insert_with_parent(joint_collider.clone(), hipx, &mut bodies);
-            let hipy = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 5., 1.]));
-                colliders.insert_with_parent(joint_collider.clone(), hipy, &mut bodies);
-            leg_r_upper = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 5., 1.]));
+            let l_hip = SphericalJointBuilder::new()
+                .local_anchor1(point![0., -spine_seg_len/2., 0.])
+                .local_anchor2(point![0., leg_upper_len/2., 0.])
+                .limits(JointAxis::AngX, [-FRAC_PI_2, FRAC_PI_2])
+                .limits(JointAxis::AngY, [-FRAC_PI_2, 0.])
+                .limits(JointAxis::AngZ, [-FRAC_PI_4, 0.])
+                .motor(JointAxis::AngX, 0., target_vel, stiffness, damping)
+                .motor(JointAxis::AngY, 0., target_vel, stiffness, damping)
+                .motor(JointAxis::AngZ, 0., target_vel, stiffness, damping);
+
+
+            let leg_r_upper = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 5., 1.]));
                 colliders.insert_with_parent(upper_leg_collider.clone(), leg_r_upper, &mut bodies);
-            
             let leg_l_lower = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 5., 1.]));
                 colliders.insert_with_parent(lower_leg_collider.clone(), leg_l_lower, &mut bodies);
 
-            multibody_joints.insert(spine_root, hipx, hipx_j, true);
-            multibody_joints.insert(hipx, hipy, hipy_j, true);
-            multibody_joints.insert(hipy, leg_r_upper, hipz_j, true);
+            multibody_joints.insert(spine_root, leg_r_upper, l_hip, true);
             multibody_joints.insert(leg_r_upper, leg_l_lower, kneex_j, true);
         }
 
-        {//left leg
+        if false {//left leg
             hipy_j = hipy_j.limits([-FRAC_PI_2, 0.]);
             hipz_j = hipz_j
                 .limits([0., FRAC_PI_4])
@@ -282,5 +285,5 @@ pub fn init_world(testbed: &mut Testbed) {
     let integration_params = testbed.integration_parameters_mut();
         integration_params.num_solver_iterations = NonZeroUsize::new(12).unwrap();
         integration_params.num_internal_stabilization_iterations = 4;
-    testbed.look_at(point![15., 15., 15.], point![0.0, 2., 0.0]);
+    testbed.look_at(point![15., 15., -15.], point![0.0, 2., 0.0]);
 }
