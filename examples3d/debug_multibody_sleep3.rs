@@ -35,6 +35,7 @@ pub fn init_world(testbed: &mut Testbed) {
     let leg_lower_len = leg_len*0.51;
     let motor_vel = 10f32.to_radians();
     let spine_seg_coll = ColliderBuilder::capsule_y((spine_seg_len/2.)-radius, radius);
+    let body_spawn_loc = vector![0., 6., 0.];
 
     let seg_coll_handle = colliders.insert(
         spine_seg_coll.clone()
@@ -49,7 +50,6 @@ pub fn init_world(testbed: &mut Testbed) {
     let mut mbj_handle_opt = None;
 
     {//spine
-        let body_spawn_loc = vector![0., leg_len, 0.];
         let fixed = bodies.insert(RigidBodyBuilder::fixed().translation(body_spawn_loc));
         spine_root = bodies.insert(RigidBodyBuilder::dynamic());
             colliders.set_parent(seg_coll_handle, Some(spine_root), &mut bodies);
@@ -88,20 +88,27 @@ pub fn init_world(testbed: &mut Testbed) {
             .limits([-90f32.to_radians(), 90f32.to_radians()])
             .motor(0., target_vel, stiffness, damping);
 
-
         let upper_arm_coll = ColliderBuilder::capsule_x((arm_upper_len/2.)-radius, radius);
+        let lower_arm_coll = ColliderBuilder::capsule_x((arm_lower_len/2.)-radius, radius);
+
         {//right arm
             let mut rb_builder = RigidBodyBuilder::dynamic().translation(vector![1., leg_len+spine_len, 1.]);
             {//upper arm
+                let r_shld_j = SphericalJointBuilder::new()
+                    .local_anchor1(point![0., spine_seg_len/2., 0.])
+                    .local_anchor2(point![-arm_upper_len/2., 0., 0.])
+                    .limits(JointAxis::AngX, [-FRAC_PI_2-FRAC_PI_4, FRAC_PI_2])
+                    .limits(JointAxis::AngY, [-FRAC_PI_2, FRAC_PI_2+FRAC_PI_4])
+                    .limits(JointAxis::AngZ, [-FRAC_PI_2, FRAC_PI_2])
+                    .motor(JointAxis::AngX, 0., target_vel, stiffness, damping)
+                    .motor(JointAxis::AngY, 0., target_vel, stiffness, damping)
+                    .motor(JointAxis::AngZ, 0., target_vel, stiffness, damping);
+
                 let shldz_j = RevoluteJointBuilder::new(Vector::z_axis())
                     .local_anchor2(point![-arm_upper_len/2., 0., 0.])
                     .limits([-90f32.to_radians(), 90f32.to_radians()])
                     .motor(0., target_vel, stiffness, damping);
 
-                let shldx = bodies.insert(rb_builder.clone());
-                colliders.insert_with_parent(joint_collider.clone(), shldx, &mut bodies);
-                let shldy = bodies.insert(rb_builder.clone());
-                colliders.insert_with_parent(joint_collider.clone(), shldy, &mut bodies);
                 arm_r_upper = bodies.insert(rb_builder.clone());
                 colliders.insert_with_parent(
                     upper_arm_coll.clone(),
@@ -109,9 +116,7 @@ pub fn init_world(testbed: &mut Testbed) {
                     &mut bodies
                 );
             
-                multibody_joints.insert(spine_end, shldx, shldx_j, true);
-                multibody_joints.insert(shldx, shldy, shldy_j, true);
-                multibody_joints.insert(shldy, arm_r_upper, shldz_j, true).unwrap();
+                multibody_joints.insert(spine_end, arm_r_upper, r_shld_j, true);
             }
 
 
@@ -129,11 +134,11 @@ pub fn init_world(testbed: &mut Testbed) {
                 let elbx = bodies.insert(rb_builder.clone());
                     colliders.insert_with_parent(joint_collider.clone(), elbx, &mut bodies);
                 let arm_r_lower = bodies.insert(rb_builder.clone());
-                let lower_arm_coll = colliders.insert_with_parent(
-                    ColliderBuilder::capsule_x((arm_lower_len/2.)-radius, radius),
-                    arm_r_lower,
-                    &mut bodies
-                );
+                    colliders.insert_with_parent(
+                        lower_arm_coll.clone(),
+                        arm_r_lower,
+                        &mut bodies
+                    );
 
                 multibody_joints.insert(arm_r_upper, elbx, elbx_j, true);
                 multibody_joints.insert(elbx, arm_r_lower, elby_j, true);
@@ -150,48 +155,47 @@ pub fn init_world(testbed: &mut Testbed) {
                     .limits([-90f32.to_radians(), 90f32.to_radians()])
                     .motor(0., target_vel, stiffness, damping);
 
+                let l_shld_j = SphericalJointBuilder::new()
+                    .local_anchor1(point![0., spine_seg_len/2., 0.])
+                    .local_anchor2(point![arm_upper_len/2., 0., 0.])
+                    .limits(JointAxis::AngX, [-FRAC_PI_2-FRAC_PI_4, FRAC_PI_2])
+                    .limits(JointAxis::AngY, [-FRAC_PI_2-FRAC_PI_4, FRAC_PI_2])
+                    .limits(JointAxis::AngZ, [-FRAC_PI_2, FRAC_PI_2])
+                    .motor(JointAxis::AngX, 0., target_vel, stiffness, damping)
+                    .motor(JointAxis::AngY, 0., target_vel, stiffness, damping)
+                    .motor(JointAxis::AngZ, 0., target_vel, stiffness, damping);
 
-                let shldx = bodies.insert(rb_builder.clone());
-                    colliders.insert_with_parent(joint_collider.clone(), shldx, &mut bodies);
-                let shldy = bodies.insert(rb_builder.clone());
-                    colliders.insert_with_parent(joint_collider.clone(), shldy, &mut bodies);
                 arm_l_upper = bodies.insert(rb_builder.clone());
                     colliders.insert_with_parent(upper_arm_coll, arm_l_upper, &mut bodies);
 
                 
-                multibody_joints.insert(spine_end, shldx, shldx_j, true);
-                multibody_joints.insert(shldx, shldy, shldy_j, true);
-                multibody_joints.insert(shldy, arm_l_upper, shldz_j, true);
+                multibody_joints.insert(spine_end, arm_l_upper, l_shld_j, true);
             }
 
 
-            if false {//lower
-                let elbx_j = RevoluteJointBuilder::new(Vector::x_axis())
-                    .local_anchor1(point![-arm_upper_len/2., 0., 0.])
-                    .limits([0., 45f32.to_radians()])
-                    .motor(0., target_vel, stiffness, damping);
+            {//lower
                 let elby_j = RevoluteJointBuilder::new(Vector::y_axis())
+                    .local_anchor1(point![-arm_upper_len/2., 0., 0.])
+                    .limits([-FRAC_PI_2+FRAC_PI_4, 0.])
+                    .motor(0., target_vel, stiffness, damping);
+                let elbx_j = RevoluteJointBuilder::new(Vector::x_axis())
                     .local_anchor2(point![arm_lower_len/2., 0., 0.])
-                    .limits([0., 180f32.to_radians()])
+                    .limits([-FRAC_PI_2, FRAC_PI_2])
                     .motor(0., target_vel, stiffness, damping);
 
 
-                let elbx = bodies.insert(RigidBodyBuilder::dynamic()
-                    .translation(vector![0., 0., 1.])
-                );
+                let elbx = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 0., 1.]));
                     colliders.insert_with_parent(joint_collider.clone(), elbx, &mut bodies);
-                let arm_l_lower = bodies.insert(RigidBodyBuilder::dynamic()
-                    .translation(vector![0., 0., 1.])
-                );
-                colliders.insert_with_parent(
-                    ColliderBuilder::capsule_x((arm_lower_len/2.)-radius, radius),
-                    arm_l_lower,
-                    &mut bodies
-                );
+                let arm_l_lower = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 0., 1.]));
+                    colliders.insert_with_parent(
+                        lower_arm_coll.clone(),
+                        arm_l_lower,
+                        &mut bodies
+                    );
 
                 
-                multibody_joints.insert(arm_l_upper, elbx, elbx_j, true);
-                multibody_joints.insert(elbx, arm_l_lower, elby_j, true);
+                multibody_joints.insert(arm_l_upper, elbx, elby_j, true);
+                multibody_joints.insert(elbx, arm_l_lower, elbx_j, true);
             }
         }
     }
@@ -211,22 +215,22 @@ pub fn init_world(testbed: &mut Testbed) {
         let mut kneex_j = RevoluteJointBuilder::new(Vector3::x_axis())
             .local_anchor1(point![0., -leg_upper_len/2., 0.])
             .local_anchor2(point![0., leg_lower_len/2., 0.])
-            .limits([-FRAC_PI_4, 0.])
+            .limits([-FRAC_PI_2-FRAC_PI_4, 0.])
             .motor(0., target_vel, stiffness, damping);
         let upper_leg_collider = ColliderBuilder::capsule_y((leg_upper_len/2.)-radius, radius);
         let lower_leg_collider = ColliderBuilder::capsule_y((leg_upper_len/2.)-radius, radius);
 
         {//right leg
 
-            let l_hip = SphericalJointBuilder::new()
+            let r_hip = SphericalJointBuilder::new()
                 .local_anchor1(point![0., -spine_seg_len/2., 0.])
                 .local_anchor2(point![0., leg_upper_len/2., 0.])
                 .limits(JointAxis::AngX, [-FRAC_PI_2, FRAC_PI_2])
                 .limits(JointAxis::AngY, [-FRAC_PI_2, 0.])
-                .limits(JointAxis::AngZ, [-FRAC_PI_4, 0.])
+                .limits(JointAxis::AngZ, [-FRAC_PI_4, FRAC_PI_6/2.])
                 .motor(JointAxis::AngX, 0., target_vel, stiffness, damping)
                 .motor(JointAxis::AngY, 0., target_vel, stiffness, damping)
-                .motor(JointAxis::AngZ, 0., target_vel, stiffness, damping);
+                .motor(JointAxis::AngZ, FRAC_PI_6/2., target_vel, stiffness, damping);
 
 
             let leg_r_upper = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 5., 1.]));
@@ -234,31 +238,30 @@ pub fn init_world(testbed: &mut Testbed) {
             let leg_l_lower = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![0., 5., 1.]));
                 colliders.insert_with_parent(lower_leg_collider.clone(), leg_l_lower, &mut bodies);
 
-            multibody_joints.insert(spine_root, leg_r_upper, l_hip, true);
+            multibody_joints.insert(spine_root, leg_r_upper, r_hip, true);
             multibody_joints.insert(leg_r_upper, leg_l_lower, kneex_j, true);
         }
 
-        if false {//left leg
-            hipy_j = hipy_j.limits([-FRAC_PI_2, 0.]);
-            hipz_j = hipz_j
-                .limits([0., FRAC_PI_4])
-                .motor_position(FRAC_PI_6/2., stiffness, damping);
+        {//left leg
 
-            let hipx = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![1., 5., 1.]));
-                colliders.insert_with_parent(joint_collider.clone(), hipx, &mut bodies);
-            let hipy = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![1., 5., 1.]));
-                colliders.insert_with_parent(joint_collider.clone(), hipy, &mut bodies);
+            let l_hip = SphericalJointBuilder::new()
+                .local_anchor1(point![0., -spine_seg_len/2., 0.])
+                .local_anchor2(point![0., leg_upper_len/2., 0.])
+                .limits(JointAxis::AngX, [-FRAC_PI_2, FRAC_PI_2])
+                .limits(JointAxis::AngY, [0., FRAC_PI_2])
+                .limits(JointAxis::AngZ, [-FRAC_PI_6/2., FRAC_PI_4])
+                .motor(JointAxis::AngX, 0., target_vel, stiffness, damping)
+                .motor(JointAxis::AngY, 0., target_vel, stiffness, damping)
+                .motor(JointAxis::AngZ, -FRAC_PI_6/2., target_vel, stiffness, damping);
+
             let leg_l_upper = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![1., 5., 1.]));
                 colliders.insert_with_parent(upper_leg_collider, leg_l_upper, &mut bodies);
             
             let leg_l_lower = bodies.insert(RigidBodyBuilder::dynamic().translation(vector![1., 5., 1.]));
                 colliders.insert_with_parent(lower_leg_collider, leg_l_lower, &mut bodies);
             
-            multibody_joints.insert(spine_root, hipx, hipx_j, true);
-            multibody_joints.insert(hipx, hipy, hipy_j, true);
-            multibody_joints.insert(hipy, leg_l_upper, hipz_j, true);
-            let h = multibody_joints.insert(leg_l_upper, leg_l_lower, kneex_j, true).unwrap();
-            multibody_joints.get_mut(h).unwrap().0.set_self_contacts_enabled(false);
+            multibody_joints.insert(spine_root, leg_l_upper, l_hip, true);
+            multibody_joints.insert(leg_l_upper, leg_l_lower, kneex_j, true);
         }
     }
 
@@ -285,5 +288,5 @@ pub fn init_world(testbed: &mut Testbed) {
     let integration_params = testbed.integration_parameters_mut();
         integration_params.num_solver_iterations = NonZeroUsize::new(12).unwrap();
         integration_params.num_internal_stabilization_iterations = 4;
-    testbed.look_at(point![15., 15., -15.], point![0.0, 2., 0.0]);
+    testbed.look_at(point![15., 15., 15.], point![0.0, 2., 0.0]);
 }
