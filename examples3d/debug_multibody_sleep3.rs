@@ -3,7 +3,6 @@ use std::{f32::consts::{FRAC_PI_2, FRAC_PI_3, FRAC_PI_4, FRAC_PI_6, PI}, num::No
 use nalgebra::Vector3;
 use rapier3d::prelude::*;
 use rapier_testbed3d::Testbed;
-use wasm_bindgen::UnwrapThrowExt;
 
 pub fn init_world(testbed: &mut Testbed) {
     let mut bodies = RigidBodySet::new();
@@ -80,14 +79,6 @@ pub fn init_world(testbed: &mut Testbed) {
     {//arms
         let arm_r_upper;
 
-        let shldx_j = RevoluteJointBuilder::new(Vector::x_axis())
-            .local_anchor1(point![0., spine_seg_len/2., 0.])
-            .limits([-150f32.to_radians(), 60f32.to_radians()])
-            .motor(0., target_vel, stiffness, damping);
-        let shldy_j = RevoluteJointBuilder::new(Vector::y_axis())
-            .limits([-90f32.to_radians(), 90f32.to_radians()])
-            .motor(0., target_vel, stiffness, damping);
-
         let upper_arm_coll = ColliderBuilder::capsule_x((arm_upper_len/2.)-radius, radius);
         let lower_arm_coll = ColliderBuilder::capsule_x((arm_lower_len/2.)-radius, radius);
 
@@ -103,11 +94,6 @@ pub fn init_world(testbed: &mut Testbed) {
                     .motor(JointAxis::AngX, 0., target_vel, stiffness, damping)
                     .motor(JointAxis::AngY, 0., target_vel, stiffness, damping)
                     .motor(JointAxis::AngZ, 0., target_vel, stiffness, damping);
-
-                let shldz_j = RevoluteJointBuilder::new(Vector::z_axis())
-                    .local_anchor2(point![-arm_upper_len/2., 0., 0.])
-                    .limits([-90f32.to_radians(), 90f32.to_radians()])
-                    .motor(0., target_vel, stiffness, damping);
 
                 arm_r_upper = bodies.insert(rb_builder.clone());
                 colliders.insert_with_parent(
@@ -150,10 +136,6 @@ pub fn init_world(testbed: &mut Testbed) {
             let arm_l_upper;
             let rb_builder = RigidBodyBuilder::dynamic().translation(vector![-1., leg_len+spine_len, -1.]);
             {//upper
-                let shldz_j = RevoluteJointBuilder::new(Vector::z_axis())
-                    .local_anchor2(point![arm_upper_len/2., 0., 0.])
-                    .limits([-90f32.to_radians(), 90f32.to_radians()])
-                    .motor(0., target_vel, stiffness, damping);
 
                 let l_shld_j = SphericalJointBuilder::new()
                     .local_anchor1(point![0., spine_seg_len/2., 0.])
@@ -201,18 +183,7 @@ pub fn init_world(testbed: &mut Testbed) {
     }
 
     {//legs
-        let mut hipx_j = RevoluteJointBuilder::new(Vector3::x_axis())
-            .local_anchor1(point![0., -spine_seg_len/2., 0.])
-            .limits([-FRAC_PI_6, FRAC_PI_2])
-            .motor(0., target_vel, stiffness, damping);
-        let mut hipy_j = RevoluteJointBuilder::new(Vector3::y_axis())
-            .limits([0., FRAC_PI_2])
-            .motor(0., target_vel, stiffness, damping);
-        let mut hipz_j = RevoluteJointBuilder::new(Vector3::z_axis())
-            .local_anchor2(point![0., leg_upper_len/2., 0.])
-            .limits([-FRAC_PI_4, 0.])
-            .motor(-FRAC_PI_6/2., target_vel, stiffness, damping);
-        let mut kneex_j = RevoluteJointBuilder::new(Vector3::x_axis())
+        let kneex_j = RevoluteJointBuilder::new(Vector3::x_axis())
             .local_anchor1(point![0., -leg_upper_len/2., 0.])
             .local_anchor2(point![0., leg_lower_len/2., 0.])
             .limits([-FRAC_PI_2-FRAC_PI_4, 0.])
