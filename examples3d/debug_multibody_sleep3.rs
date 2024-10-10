@@ -36,9 +36,7 @@ pub fn init_world(testbed: &mut Testbed) {
     let spine_seg_coll = ColliderBuilder::capsule_y((spine_seg_len/2.)-radius, radius);
     let body_spawn_loc = vector![0., 6., 0.];
 
-    let seg_coll_handle = colliders.insert(
-        spine_seg_coll.clone()
-    );
+    let joint_collider = ColliderBuilder::ball(radius);
 
     let target_vel = 90f32.to_radians();
     let stiffness = 1.;
@@ -52,7 +50,16 @@ pub fn init_world(testbed: &mut Testbed) {
     
     // let fixed = bodies.insert(RigidBodyBuilder::fixed().translation(body_spawn_loc));
     let spine_root = bodies.insert(RigidBodyBuilder::dynamic().translation(body_spawn_loc));
-        colliders.set_parent(seg_coll_handle, Some(spine_root), &mut bodies);
+        colliders.insert_with_parent(
+            spine_seg_coll.clone(),
+            spine_root,
+            &mut bodies
+        );
+        colliders.insert_with_parent(
+            joint_collider.clone().translation(vector![0., -spine_seg_len/2., 0.]),
+            spine_root,
+            &mut bodies
+        );
     // multibody_joints.insert(fixed, spine_root, FixedJoint::new(), true);
     
     {//legs
@@ -78,11 +85,16 @@ pub fn init_world(testbed: &mut Testbed) {
 
             let leg_r_upper = bodies.insert(RigidBodyBuilder::dynamic().translation(body_spawn_loc+vector![radius*2., -leg_upper_len, 0.]));
                 colliders.insert_with_parent(upper_leg_collider.clone(), leg_r_upper, &mut bodies);
-            let leg_l_lower = bodies.insert(RigidBodyBuilder::dynamic().translation(body_spawn_loc+vector![radius*5., -leg_upper_len, 0.]));
-                colliders.insert_with_parent(lower_leg_collider.clone(), leg_l_lower, &mut bodies);
+            let leg_r_lower = bodies.insert(RigidBodyBuilder::dynamic().translation(body_spawn_loc+vector![radius*5., -leg_upper_len, 0.]));
+                colliders.insert_with_parent(lower_leg_collider.clone(), leg_r_lower, &mut bodies);
+                colliders.insert_with_parent(
+                    joint_collider.clone().translation(vector![0., leg_lower_len/2., 0.]),
+                    leg_r_lower,
+                    &mut bodies
+                );
 
             multibody_joints.insert(spine_root, leg_r_upper, r_hip, true);
-            multibody_joints.insert(leg_r_upper, leg_l_lower, kneex_j, true);
+            multibody_joints.insert(leg_r_upper, leg_r_lower, kneex_j, true);
         }
 
         {//left leg
@@ -101,6 +113,11 @@ pub fn init_world(testbed: &mut Testbed) {
             
             let leg_l_lower = bodies.insert(RigidBodyBuilder::dynamic().translation(body_spawn_loc+vector![-radius*5., -leg_upper_len, 0.]));
                 colliders.insert_with_parent(lower_leg_collider, leg_l_lower, &mut bodies);
+                colliders.insert_with_parent(
+                    joint_collider.clone().translation(vector![0., leg_lower_len/2., 0.]),
+                    leg_l_lower,
+                    &mut bodies
+                );
             
             multibody_joints.insert(spine_root, leg_l_upper, l_hip, true);
             multibody_joints.insert(leg_l_upper, leg_l_lower, kneex_j, true);
@@ -117,11 +134,20 @@ pub fn init_world(testbed: &mut Testbed) {
             .build();
         let mut prev = spine_root;
         for i in 0..num_spine_segments {
-            let seg_coll_handle = colliders.insert(spine_seg_coll.clone());
             let new_seg = bodies.insert(RigidBodyBuilder::dynamic()
                 .translation(body_spawn_loc + vector![0., (i as f32 + 1.)*(spine_seg_len*1.1), 0.])
             );
-                colliders.set_parent(seg_coll_handle, Some(new_seg), &mut bodies);
+            colliders.insert_with_parent(
+                spine_seg_coll.clone(),
+                new_seg,
+                &mut bodies
+            );
+            colliders.insert_with_parent(
+                joint_collider.clone().translation(vector![0., -spine_seg_len/2., 0.]),
+                new_seg,
+                &mut bodies
+            );
+
             mbj_handle_opt = multibody_joints.insert(prev, new_seg, joint, true);
             prev = new_seg;
         }
@@ -131,7 +157,6 @@ pub fn init_world(testbed: &mut Testbed) {
        spine_end_pos = body_spawn_loc + vector![0., spine_end_y, 0.];
     }
 
-    let joint_collider = ColliderBuilder::ball(radius);
 
     {//arms
         let arm_r_upper;
@@ -180,15 +205,19 @@ pub fn init_world(testbed: &mut Testbed) {
                 let elbx = bodies.insert(rb_builder.clone()
                     .translation(elb_pos)
                 );
-                    colliders.insert_with_parent(joint_collider.clone(), elbx, &mut bodies);
                 let arm_r_lower = bodies.insert(rb_builder.clone()
                     .translation(elb_pos + vector![arm_lower_len/2. + radius*2., 0., 0.])
                 );
-                    colliders.insert_with_parent(
-                        lower_arm_coll.clone(),
-                        arm_r_lower,
-                        &mut bodies
-                    );
+                colliders.insert_with_parent(
+                    lower_arm_coll.clone(),
+                    arm_r_lower,
+                    &mut bodies
+                );
+                colliders.insert_with_parent(
+                    joint_collider.clone().translation(vector![-arm_lower_len/2., 0., 0.]),
+                    arm_r_lower,
+                    &mut bodies
+                );
 
                 multibody_joints.insert(arm_r_upper, elbx, elbx_j, true);
                 multibody_joints.insert(elbx, arm_r_lower, elby_j, true);
@@ -232,15 +261,21 @@ pub fn init_world(testbed: &mut Testbed) {
 
                 let elb_pos = upper_arm_pos - vector![arm_upper_len/2. + radius*2., 0., 0.];
                 let elbx = bodies.insert(RigidBodyBuilder::dynamic().translation(elb_pos));
-                    colliders.insert_with_parent(joint_collider.clone(), elbx, &mut bodies);
+                    // colliders.insert_with_parent(joint_collider.clone(), elbx, &mut bodies);
                 let arm_l_lower = bodies.insert(RigidBodyBuilder::dynamic()
                     .translation(elb_pos - vector![arm_lower_len/2. + radius*2., 0., 0.])
                 );
-                    colliders.insert_with_parent(
-                        lower_arm_coll.clone(),
-                        arm_l_lower,
-                        &mut bodies
-                    );
+                colliders.insert_with_parent(
+                    lower_arm_coll.clone(),
+                    arm_l_lower,
+                    &mut bodies
+                );
+                colliders.insert_with_parent(
+                    
+                    joint_collider.clone().translation(vector![arm_lower_len/2., 0., 0.]),
+                    arm_l_lower,
+                    &mut bodies
+                );
 
                 
                 multibody_joints.insert(arm_l_upper, elbx, elby_j, true);
