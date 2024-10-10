@@ -293,7 +293,6 @@ pub fn init_world(testbed: &mut Testbed) {
 
     testbed.set_world(bodies, colliders, impulse_joints, multibody_joints);
     let integration_params = testbed.integration_parameters_mut();
-        integration_params.num_solver_iterations = NonZeroUsize::new(12).unwrap();
-        integration_params.num_internal_stabilization_iterations = 4;
+        integration_params.num_solver_iterations = NonZeroUsize::new(6).unwrap();
     testbed.look_at(point![15., 15., 15.], point![0.0, 2., 0.0]);
 }
