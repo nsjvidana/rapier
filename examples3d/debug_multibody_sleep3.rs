@@ -20,16 +20,19 @@ pub fn init_world(testbed: &mut Testbed) {
         colliders.insert_with_parent(collider, ground_body, &mut bodies);
 
 
+    //geometry parameters
     let radius = 0.1;
-    let head_radius = 0.3;
-    let head_total_height = 1.0;
-    let head_half_height = (head_total_height-head_radius*2.)/2.;
-    let arm_upper_len = 1.;
-    let arm_lower_len = 1.25;
-    let spine_len = 4.;
+    let spine_len = 2.;
+    let arm_len = spine_len*1.333;
+    let arm_upper_len = arm_len*0.45;
+    let arm_lower_len = arm_len - arm_upper_len;
+    let leg_len = spine_len*1.9;
     let num_spine_segments = 2;
+    let neck_len = spine_len/6.;
+    let head_diameter = (spine_len/2. + neck_len/2.)*0.95;
+
+    let head_radius = head_diameter/2.;
     let spine_seg_len = spine_len/(1. + num_spine_segments as f32);
-    let leg_len = 3.05;
     let leg_upper_len = leg_len * 0.49;
     let leg_lower_len = leg_len*0.51;
     let motor_vel = 10f32.to_radians();
@@ -60,6 +63,9 @@ pub fn init_world(testbed: &mut Testbed) {
             &mut bodies
         );
     
+    
+    let leg_l_lower;
+    let leg_r_lower;
     {//legs
         let kneex_j = RevoluteJointBuilder::new(Vector3::x_axis())
             .local_anchor1(point![0., -leg_upper_len/2., 0.])
@@ -68,9 +74,6 @@ pub fn init_world(testbed: &mut Testbed) {
             .motor(0., target_vel, stiffness, damping);
         let upper_leg_collider = ColliderBuilder::capsule_y((leg_upper_len/2.)-radius, radius);
         let lower_leg_collider = ColliderBuilder::capsule_y((leg_upper_len/2.)-radius, radius);
-
-        let leg_l_lower;
-        let leg_r_lower;
 
         {//left leg
             let l_hip = SphericalJointBuilder::new()
@@ -284,8 +287,6 @@ pub fn init_world(testbed: &mut Testbed) {
     }
 
     {//head
-
-        let neck_len = spine_len/8.;
         let neck_pos = spine_end_pos + vector![0., neck_len/2. + radius, 0.];
         let neck_collider = ColliderBuilder::capsule_y((neck_len/2.)-radius, radius);
         let neck = bodies.insert(RigidBodyBuilder::dynamic().translation(neck_pos));
@@ -295,8 +296,8 @@ pub fn init_world(testbed: &mut Testbed) {
             &mut bodies
         );
         
-        let head_pos = neck_pos + vector![0., neck_len/2. + head_total_height/2. + radius, 0.];
-        let head_collider = ColliderBuilder::capsule_y(head_half_height, head_radius);
+        let head_pos = neck_pos + vector![0., neck_len/2. + head_radius + radius, 0.];
+        let head_collider = ColliderBuilder::ball(head_radius);
         let head = bodies.insert(RigidBodyBuilder::dynamic()
             .translation(head_pos)
         );
@@ -310,7 +311,7 @@ pub fn init_world(testbed: &mut Testbed) {
             .motor(JointAxis::AngZ, 0., target_vel, stiffness, damping);
         let neck_j = SphericalJointBuilder::new()
             .local_anchor1(point![0., neck_len/2., 0.])
-            .local_anchor2(point![0., -(head_half_height+head_radius)/2., 0.])
+            .local_anchor2(point![0., -head_radius, 0.])
             .limits(JointAxis::AngX, [-FRAC_PI_4, FRAC_PI_3])
             .limits(JointAxis::AngY, [-PI, PI])
             .limits(JointAxis::AngZ, [-FRAC_PI_4, FRAC_PI_4])
@@ -328,5 +329,5 @@ pub fn init_world(testbed: &mut Testbed) {
     testbed.set_world(bodies, colliders, impulse_joints, multibody_joints);
     let integration_params = testbed.integration_parameters_mut();
         integration_params.num_solver_iterations = NonZeroUsize::new(6).unwrap();
-    testbed.look_at(point![15., 15., 15.], point![0.0, 2., 0.0]);
+    testbed.look_at(point![0., body_spawn_loc.y, 15.], point![0.0, body_spawn_loc.y, 0.0]);
 }
